@@ -29,7 +29,7 @@ Environment:
 - `GEMINI_API_KEY` for Gemini/Gemma via Google GenAI.
 - Authentication via Google Vertex AI (`gcloud auth login`) + environment variables for `GOOGLE_GENAI_USE_VERTEXAI`, `GOOGLE_CLOUD_PROJECT` & `GOOGLE_CLOUD_LOCATION`
 
-## Pipelines (DVC)
+## Pipelines (DVC)u
 
 ### Testing with example dataset
 To test the training and streamlit app on the included example dataset (i.e. without running the synthetic data generation):

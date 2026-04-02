@@ -1,0 +1,152 @@
+schema: '2.0'
+stages:
+  synthetic_data:
+    cmd: python -m synthetic_data.generate --params params.yaml
+    deps:
+    - path: synthetic_data/clients.py
+      hash: md5
+      md5: 455494955689210482a423f05764d6da
+      size: 3219
+    - path: synthetic_data/data/seed_titles.csv
+      hash: md5
+      md5: 6532c41a464d8ecb490585089edeaaf9
+      size: 416737
+    - path: synthetic_data/generate.py
+      hash: md5
+      md5: 4b7fc761eec7fc43a3166f390cc58814
+      size: 13233
+    - path: synthetic_data/models.py
+      hash: md5
+      md5: 0bf7270303b10b89b1ea5af6e0f40700
+      size: 621
+    params:
+      params.yaml:
+        synthetic_data:
+          model: gpt-5-mini
+          api_key_env:
+          num_examples_per_title: 10
+          temperature:
+          reasoning_effort: minimal
+          max_retries: 6
+          retry_backoff: 5.0
+          max_concurrent: 300
+          seed: 42
+          output_responses: synthetic_data/data/jitter_responses.jsonl
+          output_titles: synthetic_data/data/jittered_titles.csv
+          metrics_path: synthetic_data/metrics/jitter_summary.json
+    outs:
+    - path: synthetic_data/data/jittered_titles.csv
+      hash: md5
+      md5: a485e6093ba2c5341764b7c2cfa61f6b
+      size: 3841356
+    - path: synthetic_data/metrics/jitter_summary.json
+      hash: md5
+      md5: 99914b932bd37a50b983c5e7c90ae93b
+      size: 2
+  fine_tuning:
+    cmd: python -m fine_tuning.train --params params.yaml
+    deps:
+    - path: fine_tuning/train.py
+      hash: md5
+      md5: 08e2ca62f1402662be694b95c65d1725
+      size: 15526
+    - path: fine_tuning/visualize_embedding_space.py
+      hash: md5
+      md5: b7c27a84ea064545677b2db4e006500b
+      size: 1064
+    - path: synthetic_data/data/jittered_titles.csv
+      hash: md5
+      md5: a485e6093ba2c5341764b7c2cfa61f6b
+      size: 3841356
+    params:
+      params.yaml:
+        fine_tuning:
+          base_model: sentence-transformers/all-MiniLM-L6-v2
+          jitter_path: synthetic_data/data/jittered_titles.csv
+          dynamic_negatives: true
+          num_epochs: 15
+          train_batch_size: 192
+          negatives_per_positive: 5
+          evals_per_epoch: 2
+          val_fraction: 0.2
+          test_fraction: 0.1
+          random_seed: 42
+          max_steps:
+          tsne_subset_size: 500
+          tsne_perplexity: 20
+          tsne_learning_rate: 200
+          tsne_n_iter: 1000
+          model_save_dir: fine_tuning/data/trained_models
+          metrics_path: fine_tuning/metrics/training.json
+          plot_path: fine_tuning/plots/embedding_tsne.png
+    outs:
+    - path: fine_tuning/data/datasets/test_ds.csv
+      hash: md5
+      md5: b987bc8ac32fde7486d17a8e21ff34a7
+      size: 579732
+    - path: fine_tuning/data/datasets/train_ds.csv
+      hash: md5
+      md5: 8f296028e83fd02955f7fad949b3860b
+      size: 2610559
+    - path: fine_tuning/data/datasets/val_ds.csv
+      hash: md5
+      md5: 72428a273e0008fe168439c58947f792
+      size: 651159
+    - path: fine_tuning/data/trained_models
+      hash: md5
+      md5: c057beacdb0dca9e6c588e5cdfcb8fd0.dir
+      size: 636095469
+      nfiles: 39
+    - path: fine_tuning/metrics/training.json
+      hash: md5
+      md5: aada7057613ba12bb0e7c03db8b0680a
+      size: 506
+    - path: fine_tuning/plots/embedding_tsne.png
+      hash: md5
+      md5: bc6e4091a7d0eb52e18908a22bed54ce
+      size: 224728
+  publish_model:
+    cmd: "python -c \"from pathlib import Path; import shutil; src=Path('fine_tuning/data/trained_models');
+      dst=Path('streamlit_app/data/fine_tuned_model'); shutil.rmtree(dst) if dst.exists()
+      else None; shutil.copytree(src, dst); print(f'Copied {src} -> {dst}')\"\n"
+    deps:
+    - path: fine_tuning/data/trained_models
+      hash: md5
+      md5: c057beacdb0dca9e6c588e5cdfcb8fd0.dir
+      size: 636095469
+      nfiles: 39
+    - path: fine_tuning/metrics/training.json
+      hash: md5
+      md5: aada7057613ba12bb0e7c03db8b0680a
+      size: 506
+    outs:
+    - path: streamlit_app/data/fine_tuned_model
+      hash: md5
+      md5: c057beacdb0dca9e6c588e5cdfcb8fd0.dir
+      size: 636095469
+      nfiles: 39
+  prepare_embeddings:
+    cmd: python streamlit_app/prepare_embeddings.py
+    deps:
+    - path: streamlit_app/data/fine_tuned_model
+      hash: md5
+      md5: c057beacdb0dca9e6c588e5cdfcb8fd0.dir
+      size: 636095469
+      nfiles: 39
+    - path: streamlit_app/data/job_postings.parquet
+      hash: md5
+      md5: e4f9b3738201cc19c56b717fcff34415
+      size: 9216633
+    - path: streamlit_app/prepare_embeddings.py
+      hash: md5
+      md5: bddf4fa7200953da50cb3bf582a777d3
+      size: 1871
+    outs:
+    - path: streamlit_app/data/default_embeddings.npy
+      hash: md5
+      md5: e90ac60508d0afd8f8fc069e5a748e6b
+      size: 172030592
+    - path: streamlit_app/data/fine_tuned_embeddings.npy
+      hash: md5
+      md5: dbfd1c7cac1ad031cfaec596db299e43
+      size: 172030592
